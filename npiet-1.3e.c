@@ -2176,7 +2176,6 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
 	 depending on the particular incarnation of this command and pushes
 	 it on to the stack.
        */
-      long c;
 
       if (gd_trace_simple) {
 	strcpy (msg, "iN");
@@ -2191,11 +2190,10 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
 	printf ("? "); fflush (stdout);
       }
 
-      if (1 != fscanf (stdin, "%ld", &c)) {
+      if (0 == mpz_inp_str (stack [num_stack++],stdin, 10)) {
 	tprintf ("info: cannot read int from stdin; reason: %s\n",
 		 strerror (errno));
-      } else {
-    mpz_set_si(stack [num_stack++],c);
+         mpz_realloc2(stack [--num_stack],0);
       }
       tdump_stack ();
     }
