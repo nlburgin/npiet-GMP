@@ -11,7 +11,7 @@ Now it's possible, and it will be posted here when it's finished.
 
 Several of the examples listed in the above link have already successfully run under this version, including under conditions that would have had overflow errors in the original (such as the power function that looks like a bus, and the factorial example)
 
-##Building
+## Building
 
 You'll need the Gnu Multi-Precision library (GMP) installed along with its headers. The `-lgmp` compiler/linker flag is mandatory. 
 
