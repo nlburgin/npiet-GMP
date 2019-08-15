@@ -7,7 +7,7 @@ The specification said that the maximum integer size was "notionally infinite", 
 
 This was kind of getting in the way of my idea to make a fancy painting of a six-sided die that also implement a large-state high period Linear Congruential Generator. I guess within the constraints of the existing versions I could have done like a crappy 16-bit one or something, but that seemed lame :p
 
-Now it's possible, and it will be posted here when it's finished.
+Now it's possible, and hopefully it will be finished and posted here sometime soon.
 
 Several of the examples listed in the above link have already successfully run under this version, including under conditions that would have had overflow errors in the original (such as the power function that looks like a bus, and the factorial example)
 
