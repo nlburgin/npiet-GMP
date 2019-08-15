@@ -9,7 +9,7 @@ This was kind of getting in the way of my idea to make a fancy painting of a six
 
 Now it's possible, and it will be posted here when it's finished.
 
-Several of the examples listed in the above link have already successfully run under this version, including under conditions that would have had overflow errors in the original (such as the power function that looks like a bus)
+Several of the examples listed in the above link have already successfully run under this version, including under conditions that would have had overflow errors in the original (such as the power function that looks like a bus, and the factorial example)
 
 ##Building
 
