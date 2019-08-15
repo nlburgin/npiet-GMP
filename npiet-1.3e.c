@@ -1,3 +1,11 @@
+/*Modified Aug 2019 to use GMP bignums instead of 'long'.
+  this puts it closer to the spec of numbers in Piet being
+  "notionally infinite" in range.
+
+  However, the stack size is still constrained.
+*/
+
+
 /*
  * npiet.c:						May 2004
  * (schoenfr@web.de)					Aug 2016
@@ -54,13 +62,15 @@
  *
  */
 
-char *version = "v1.3e";
+char *version = "v1.3e-gmp";
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
 #include <errno.h>
+#include <limits.h>
+#include <gmp.h>
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -378,24 +388,37 @@ unsigned exec_step = 0;
 /*
  * stack space for runtime action: 
  */
-long *stack = 0;		/* stack space */
+mpz_t *stack = 0;		/* stack space */
 int num_stack = 0;		/* current number of values on stack */
 int max_stack = 0;		/* max size of stack allocated */
 
 void
 alloc_stack_space (int val)
 {
-  if (val <= max_stack) {
+  if(val < 0){
+    fprintf(stderr,"apparent stack overflow: requested stack size %d \n",val); fflush (stderr);
+  }
+  else if (val <= max_stack) {
     return;
   } else if (! stack) {
     max_stack = val;
-    stack = (long *) calloc (val, sizeof (long));
+    stack = (mpz_t *) calloc (val, sizeof (mpz_t));
+    for (int i = 0; i < max_stack;i++){
+        mpz_init(stack[i]);
+    }
   } else {
-    long *new_stack = (long *) calloc (val, sizeof (long));
-    memcpy (new_stack, stack, num_stack * sizeof (long));
+    //try to amortize
+    val = max_stack * 2;
+    if (val < max_stack) val = INT_MAX;
+    
+    mpz_t *new_stack = (mpz_t *) calloc (val, sizeof (mpz_t));
+    memcpy (new_stack, stack, num_stack * sizeof (mpz_t));
     free (stack);
-    max_stack = val;
     stack = new_stack;
+    for (int i = max_stack; i < val; i++){
+        mpz_init(stack[i]);
+    }
+    max_stack = val;
   }
   dprintf ("deb: stack extended to %d entries (num_stack is %d)\n",
 	   max_stack, num_stack);
@@ -405,17 +428,21 @@ alloc_stack_space (int val)
 void
 tdump_stack ()
 {
+  if (! trace) return;
+  
   int i;
 
   if (num_stack == 0) {
-    tprintf ("trace: stack is empty");
+    printf ("trace: stack is empty");
   } else {
-    tprintf ("trace: stack (%d values):", num_stack);
+    printf ("trace: stack (%d values):", num_stack);
   }
   for (i = 0; i < num_stack; i++) {
-    tprintf (" %ld", stack [num_stack - i - 1]);
+    char *out = mpz_get_str(NULL,10,stack[num_stack - i - 1]);
+    printf (" %s", out);
+    free(out);
   }
-  tprintf ("\n");
+  printf ("\n");
 }
 
 
@@ -1798,7 +1825,7 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
       }
       tprintf ("action: push, value %d\n", num_cells);
       alloc_stack_space (num_stack + 1);
-      stack [num_stack++] = num_cells;
+      mpz_set_si(stack [num_stack++],num_cells);
       tdump_stack ();
 
     } else if (light_change == 2) {
@@ -1812,7 +1839,7 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
       }
       tprintf ("action: pop\n");
       if (num_stack > 0) {
-	num_stack--;
+    mpz_realloc2(stack [--num_stack],0);
       } else {
 	tprintf ("info: pop failed: stack underflow\n");
       }
@@ -1837,8 +1864,8 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
       if (num_stack < 2) {
 	tprintf ("info: add failed: stack underflow \n");
       } else {
-	stack [num_stack - 2] = stack [num_stack - 2] + stack [num_stack - 1];
-	num_stack--;
+    mpz_add (stack [num_stack - 2], stack [num_stack - 2], stack [num_stack - 1]);
+	mpz_realloc2(stack [--num_stack],0);
       }
       tdump_stack ();
 
@@ -1857,8 +1884,8 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
       if (num_stack < 2) {
 	tprintf ("info: sub failed: stack underflow \n");
       } else {
-	stack [num_stack - 2] = stack [num_stack - 2] - stack [num_stack - 1];
-	num_stack--;
+    mpz_sub (stack [num_stack - 2], stack [num_stack - 2], stack [num_stack - 1]);
+	mpz_realloc2(stack [--num_stack],0);
       }
       tdump_stack ();
 
@@ -1876,8 +1903,8 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
       if (num_stack < 2) {
 	tprintf ("info: multiply failed: stack underflow \n");
       } else {
-	stack [num_stack - 2] = stack [num_stack - 2] * stack [num_stack - 1];
-	num_stack--;
+	mpz_mul (stack [num_stack - 2], stack [num_stack - 2], stack [num_stack - 1]);
+	mpz_realloc2(stack [--num_stack],0);
       }
       tdump_stack ();
     }
@@ -1899,14 +1926,14 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
       tprintf ("action: divide\n");
       if (num_stack < 2) {
 	tprintf ("info: divide failed: stack underflow \n");
-      } else if (stack [num_stack - 1] == 0) {
+      } else if ( mpz_cmp_si (stack [num_stack - 1], 0) == 0) {
  	/* try to put a undefined, but visible value on stack: */
-	stack [num_stack - 2] = 99999999;
+	mpz_set_si (stack [num_stack - 2], -123456789);
 	num_stack--;
 	tprintf ("info: divide failed: division by zero\n");
       } else {
-	stack [num_stack - 2] = stack [num_stack - 2] / stack [num_stack - 1];
-	num_stack--;
+	mpz_tdiv_q (stack [num_stack - 2], stack [num_stack - 2], stack [num_stack - 1]);
+	mpz_realloc2(stack [--num_stack],0);
       }
       tdump_stack ();
 
@@ -1924,9 +1951,14 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
       tprintf ("action: mod\n");
       if (num_stack < 2) {
 	tprintf ("info: mod failed: stack underflow \n");
-      } else {
-	stack [num_stack - 2] = stack [num_stack - 2] % stack [num_stack - 1];
+      } else if ( mpz_cmp_si (stack [num_stack - 1],0) == 0) {
+ 	/* try to put a undefined, but visible value on stack: */
+	mpz_set_si (stack [num_stack - 2], -123456789);
 	num_stack--;
+	tprintf ("info: mod failed: division by zero\n");
+      } else {
+	mpz_tdiv_r (stack [num_stack - 2], stack [num_stack - 2], stack [num_stack - 1]);
+	mpz_realloc2(stack [--num_stack],0);
       }
       tdump_stack ();
 
@@ -1944,7 +1976,7 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
       if (num_stack < 1) {
 	tprintf ("info: not failed: stack underflow \n");
       } else {
-	stack [num_stack - 1] = ! stack [num_stack - 1];
+	mpz_set_si(stack [num_stack - 1], ! mpz_cmp_si (stack [num_stack - 1],0));
       }
       tdump_stack ();
     }
@@ -1969,8 +2001,8 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
       if (num_stack < 2) {
 	tprintf ("info: greater failed: stack underflow \n");
       } else {
-	stack [num_stack - 2] = stack [num_stack - 2] > stack [num_stack - 1];
-	num_stack--;
+  mpz_set_si(stack [num_stack - 2], mpz_cmp (stack [num_stack - 2],stack [num_stack - 1]) > 0);
+  mpz_realloc2(stack [--num_stack],0);
       }
       tdump_stack ();
 
@@ -1979,27 +2011,41 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
          pointer: Pops the top value off the stack and rotates the DP
 	 clockwise that many steps (anticlockwise if negative).
        */
-      int i, val;
 
       strcpy (msg, "dp");
       tprintf ("action: pointer\n");
       if (num_stack < 1) {
 	tprintf ("info: pointer failed: stack underflow \n");
       } else {
-	val = stack [num_stack - 1];
+  long i;
+  int rot;
+  if ( mpz_cmp_si (stack [num_stack - 1],0) == 0){
+    rot = 0;
+  } else {
+    mpz_t mod;
+    mpz_init_set_si(mod,4);
+    mpz_tdiv_r(mod,stack [num_stack - 1],mod);
+    rot = mpz_get_si(mod);
+    mpz_clear(mod);
+  }
 
-	for (i = 0; val > 0 && i < (val % 4); i++) {
+	for (i = 0; i < rot; i++) {
 	  p_dir_pointer = turn_dp (p_dir_pointer);
 	}
-	for (i = 0; val < 0 && i > -((-1 * val) % 4); i--) {
+	for (i = 0; i > rot; i--) {
 	  p_dir_pointer = turn_dp_inv (p_dir_pointer);
 	}
-	num_stack--;
-
-	if (! gd_trace_simple) {
+    
+    if (! gd_trace_simple) {
 	  /* add param to msg: */
-	  sprintf (msg, "dp(%d)", val);
+      char *out = mpz_get_str(NULL,10,stack [num_stack - 1]);
+	  sprintf (msg, "dp(%s)", out);
+      free (out);
 	}
+    
+    mpz_realloc2(stack [--num_stack],0);
+
+	
       }
       tdump_stack ();
 
@@ -2008,25 +2054,32 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
          switch: Pops the top value off the stack and toggles the CC that
 	 many times.
        */
-      int i, val;
 
       strcpy (msg, "cc");
       tprintf ("action: switch\n");
       if (num_stack < 1) {
 	tprintf ("info: switch failed: stack underflow \n");
       } else {
-	val = stack [num_stack - 1];
+  //truncation doesn't matter here
 
-	for (i = 0; i < val; i++) {
+  /*instead of actually toggling it repeatedly, 
+    we just do it once if the number of times is odd 
+   */
+	if (mpz_odd_p(stack [num_stack - 1])) {
 	  p_codel_chooser = toggle_cc (p_codel_chooser);
 	}
-	num_stack--;
+    
+    if (! gd_trace_simple) {
+	  /* add param to msg: */
+      char *out = mpz_get_str(NULL,10,stack [num_stack - 1]);
+	  sprintf (msg, "cc(%s)", out);
+      free(out);
+	}
+    
+    mpz_realloc2(stack [--num_stack],0);
 	tdump_stack ();
 	
-	if (! gd_trace_simple) {
-	  /* add param to msg: */
-	  sprintf (msg, "cc(%d)", val);
-	}
+	
       }
       tdump_stack ();
     }
@@ -2050,7 +2103,7 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
 	tprintf ("info: duplicate failed: stack underflow \n");
       } else {
 	alloc_stack_space (num_stack + 1);
-	stack [num_stack] = stack [num_stack - 1];
+	mpz_set(stack [num_stack],stack [num_stack - 1]);
 	num_stack++;
       }
       tdump_stack ();
@@ -2064,9 +2117,11 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
 	 stack n deep and bringing all values above it up by 1 place. A
 	 negative number of rolls rolls in the opposite direction. A
 	 negative depth is an error and the command is ignored.
-       */
-      int roll, depth;
 
+   Although we are using multi-precision math, our stack size
+   is still constrained to INT_MAX, 
+   so we won't support rolls deeper than that.
+       */
       if (gd_trace_simple) {
 	strcpy (msg, "ro");
       } else {
@@ -2076,33 +2131,41 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
       if (num_stack < 2) {
 	tprintf ("info: roll failed: stack underflow \n");
       } else {
-	roll = stack [num_stack - 1];
-	depth = stack [num_stack - 2];
-	num_stack -= 2;
+  mpz_t mod;
+  mpz_init_set_si(mod,num_stack);
+  mpz_tdiv_r(mod,stack [num_stack - 1],mod);
+  long roll = mpz_get_si(mod);
+  mpz_clear(mod);
 
-	if (depth < 0) {
+	if ((mpz_cmp_si (stack [num_stack - 2],0) < 0 )) {
 	  tprintf ("info: roll failed: negative depth \n");
-	} else if (num_stack < depth) {
+	} else if (mpz_cmp_si (stack [num_stack - 2],num_stack) > 0 ) {
 	  tprintf ("info: roll failed: stack underflow \n");
 	} else {
-	  int i;
+      long depth = mpz_get_si(stack [num_stack - 2]);
+      
+      mpz_realloc2(stack [--num_stack],0);
+      mpz_realloc2(stack [--num_stack],0);
+      
+      mpz_t val;
+      mpz_init(val);
 	  /* roll is positive: */
-	  for (i = 0; i < roll && roll > 0; i++) {
-	    int j, val = stack [num_stack - 1];
-	    for (j = 0; j < depth - 1; j++) {
-	      stack [num_stack - j - 1] = stack [num_stack - j - 2];
+	  for (long i = 0; i < roll && roll > 0; i++) {
+	    mpz_swap(val,stack [num_stack - 1]);
+	    for (long j = 0; j < depth - 1; j++) {
+	      mpz_swap(stack [num_stack - j - 1], stack [num_stack - j - 2]);
 	    }
-	    stack [num_stack - depth] = val;
+	    mpz_swap (stack [num_stack - depth],val);
 	  }
 	  /* roll is negative: */
-	  for (i = 0; i > roll && roll < 0; i--) {
-	    int j, val = stack [num_stack - depth];
-	    for (j = 0; j < depth - 1; j++) {
-	      stack [num_stack - depth + j ] = 
-		stack [num_stack - depth + j + 1];
+	  for (long i = 0; i > roll && roll < 0; i--) {
+	    mpz_swap(val, stack [num_stack - depth]);
+	    for (long j = 0; j < depth - 1; j++) {
+	      mpz_swap(stack [num_stack - depth + j ], stack [num_stack - depth + j + 1]);
 	    }
-	    stack [num_stack - 1] = val;
+	    mpz_swap(stack [num_stack - 1],val);
 	  }
+      mpz_clear(val);
 	}
       }
       tdump_stack ();
@@ -2113,7 +2176,7 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
 	 depending on the particular incarnation of this command and pushes
 	 it on to the stack.
        */
-      int c;
+      long c;
 
       if (gd_trace_simple) {
 	strcpy (msg, "iN");
@@ -2128,11 +2191,11 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
 	printf ("? "); fflush (stdout);
       }
 
-      if (1 != fscanf (stdin, "%d", &c)) {
+      if (1 != fscanf (stdin, "%ld", &c)) {
 	tprintf ("info: cannot read int from stdin; reason: %s\n",
 		 strerror (errno));
       } else {
-	stack [num_stack++] = c;
+    mpz_set_si(stack [num_stack++],c);
       }
       tdump_stack ();
     }
@@ -2166,7 +2229,7 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
 	tprintf ("info: cannot read char from stdin; reason: %s\n",
 		 strerror (errno));
       } else {
-	stack [num_stack++] = c % 0xff;
+    mpz_init_set_si(stack[num_stack++],c);
       }
       tdump_stack ();
 
@@ -2185,12 +2248,15 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
       if (num_stack < 1) {
 	tprintf ("info: out(number) failed: stack underflow \n");
       } else {
-	printf ("%ld", stack [num_stack - 1]); fflush (stdout);
+    char * out = mpz_get_str(NULL,10,stack[num_stack - 1]);
+	printf ("%s",out); fflush (stdout);
+    free(out);
+    
 	if (trace || debug) {
 	  /* increase readability: */
 	  tprintf ("\n");
 	}
-	num_stack--;
+    mpz_realloc2(stack [--num_stack],0);
       }
       tdump_stack ();
 
@@ -2209,13 +2275,13 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
       if (num_stack < 1) {
 	tprintf ("info: out(char) failed: stack underflow \n");
       } else {
-	printf ("%c", (int) (stack [num_stack - 1] & 0xff));
+	printf ("%c", (int) (mpz_get_ui(stack [num_stack - 1]) & 0xff));
 	fflush (stdout);
 	if (trace || debug) {
 	  /* increase readability: */
 	  tprintf ("\n");
 	}
-	num_stack--;
+    mpz_realloc2(stack [--num_stack],0);
       }
       tdump_stack ();
     }
