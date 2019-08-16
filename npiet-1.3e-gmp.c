@@ -125,6 +125,7 @@ usage (int rc)
   fprintf (stderr, "\t-d         - debug (default: off)\n");
   fprintf (stderr, "\t-dpbug     - model the perl piet interpreter (default: off)\n");
   fprintf (stderr, "\t-v11       - model the npiet v1.1 interpreter (default: off)\n");
+  fprintf (stderr, "\t-fd       - use floor division to match the official Piet spec (default: use truncating division like native C to match previous npiet versions)\n");
 
   exit (rc);
 }
@@ -176,6 +177,10 @@ char *do_n_str = 0;
  * without trace info: 
  */
 int version_11 = 0;
+
+//floor division vs truncating division
+void (*div_q)(mpz_t, const mpz_t, const mpz_t) = mpz_tdiv_q;
+void (*div_r)(mpz_t, const mpz_t, const mpz_t) = mpz_tdiv_r;
 
 /* helper: */
 #define dprintf		if (debug) printf
@@ -282,6 +287,10 @@ parse_args (int argc, char **argv)
 	codel_size = 1;
       } 
       vprintf ("info: codelsize set to %d\n", codel_size);
+    } else if (! strcmp (argv [0], "-fd")) {
+      div_q = mpz_fdiv_q;
+      div_r = mpz_fdiv_r;
+      vprintf ("info: using floor division\n");
     } else if (argv [0][0] == '-' && argv [0][1]) {
       usage (-1);
     } else if (! input_filename) {
@@ -1932,7 +1941,7 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
 	num_stack--;
 	tprintf ("info: divide failed: division by zero\n");
       } else {
-	mpz_tdiv_q (stack [num_stack - 2], stack [num_stack - 2], stack [num_stack - 1]);
+	div_q (stack [num_stack - 2], stack [num_stack - 2], stack [num_stack - 1]);
 	mpz_realloc2(stack [--num_stack],0);
       }
       tdump_stack ();
@@ -1957,7 +1966,7 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
 	num_stack--;
 	tprintf ("info: mod failed: division by zero\n");
       } else {
-	mpz_tdiv_r (stack [num_stack - 2], stack [num_stack - 2], stack [num_stack - 1]);
+	div_r (stack [num_stack - 2], stack [num_stack - 2], stack [num_stack - 1]);
 	mpz_realloc2(stack [--num_stack],0);
       }
       tdump_stack ();
