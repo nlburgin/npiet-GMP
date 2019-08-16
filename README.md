@@ -20,5 +20,5 @@ Because it's organized under a "Single Compilation Unit" model (everything is cr
 Recommended build command:
 
 ```
-gcc -O3 -march=native -fwhole-program npiet-1.3e.c -lgmp
+gcc -O3 -march=native -fwhole-program npiet-1.3e-gmp.c -lgmp
 ```
