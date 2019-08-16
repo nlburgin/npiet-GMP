@@ -311,7 +311,7 @@ extern void alloc_cells (int n_width, int n_height);
 /*
  * picture storage:
  */
-static int *cells = 0;
+static char *cells = 0;
 static int width = 0, height = 0;
 
 /*
@@ -332,7 +332,7 @@ static int width = 0, height = 0;
 #define c_black		(c_white + 1)
 #define n_colors	(c_black + 1)
 /* internal used index for filling areas: */
-#define c_mark_index	9999
+#define c_mark_index	CHAR_MAX
 
 #define adv_col(c, h, l)  (((((c) % 6) + (h)) % 6) \
 				+ (6 * ((((c) / 6) + (l)) % 3)))
@@ -554,7 +554,7 @@ get_cell (int x, int y)
     if (debug > 1) printf ("deb: bad index for x=%d, y=%d\n", x, y);
     return -1;
   }
-  return cells [c_idx];
+  return (int) cells [c_idx];
 }
 
 
@@ -571,7 +571,7 @@ set_cell (int x, int y, int val)
   if ((c_idx = cell_idx (x, y)) < 0) {
     exit (-99);			/* internal error */
   }
-  cells [c_idx] = val;
+  cells [c_idx] = (char) val;
 }
 
 
@@ -579,7 +579,7 @@ void
 alloc_cells (int n_width, int n_height)
 {
   int i, j;
-  int *n_cells = (int *) malloc (n_width * n_height * sizeof(int));
+  char *n_cells = (char *) malloc (n_width * n_height * sizeof(char));
 
   for (j = 0; j < n_height; j++) {
     for (i = 0; i < n_width; i++) {
@@ -1519,7 +1519,7 @@ cleanup_input ()
 {
   int i, j, last_c, last_p;
   int min_w = width + 1;
-  int *o_cells;
+  char *o_cells;
 
   if (codel_size < 0) {
     /* scan input: */
@@ -1556,8 +1556,8 @@ cleanup_input ()
   } 
 
   /* make a copy: */
-  o_cells = (int *) malloc (width * height * sizeof(int));
-  memcpy (o_cells, cells, width * height * sizeof(int));
+  o_cells = (char *) malloc (width * height * sizeof(char));
+  memcpy (o_cells, cells, width * height * sizeof(char));
 
   /* now reduce to single dot size: */
   width = width / codel_size;
