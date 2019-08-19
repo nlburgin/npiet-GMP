@@ -31,7 +31,7 @@ Sometimes if you have large and irregular blocks of color, deep recursion can oc
 
 in the shell you use to run the program, before running it. Note that you may need to invoke administrative privilege and edit the settings in `/etc/security/limits.conf` before this is allowed. If you change those settings, be aware they may not take effect until you log out and back in (or at least run `su -l <your-username>` to get a "refreshed" shell).
 
-There is also another possible crash that sometimes occurs with long programs of >1000 steps. It seems to have surfaced when I added GMP support, though I can't figure out why. Valgrind ruled out most of the common kinds of memory errors, yet the stack said the crash occurred in the `realloc()` function. It may have just been an obscure bug in my copy of GLIBC 2.28, I don't know. In any case, Jemalloc is optionally supported as a memory allocator, and if you get a weird crash it may fix it to build with Jemalloc support. It did fix it for me, though again I'm not really sure why 🤷
+There is also another possible crash that sometimes occurs with long programs of >1000 steps. It seems to have surfaced when I added GMP support, though I can't figure out why. Valgrind ruled out most of the common kinds of memory errors, yet the stacktrace said the crash occurred in the `realloc()` function. It may have just been an obscure bug in my copy of GLIBC 2.28, I don't know. In any case, Jemalloc is optionally supported as a memory allocator, and if you get a weird crash it may fix it to build with Jemalloc support. It did fix it for me, though again I'm not really sure why 🤷
 
 Install jemalloc and its headers, and build with:
 
