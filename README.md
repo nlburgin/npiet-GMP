@@ -22,3 +22,19 @@ Recommended build command:
 ```
 gcc -O3 -march=native -fwhole-program npiet-1.3e-gmp.c -lgmp
 ```
+
+## Troubleshooting
+
+Sometimes if you have large and irregular blocks of color, deep recursion can occur, potentially causing a segmentation fault and crashing the program. This was also the case on original npiet. If you have enough memory, you can usually fix this by removing the stack size limit. For example, on linux you would run 
+
+`ulimit -s unlimited`
+
+in the shell you use to run the program, before running it. Note that you may need to invoke administrative privilege and edit the settings in `/etc/security/limits.conf` before this is allowed.
+
+There is also another possible crash that sometimes occurs with long programs of >1000 steps. It seems to have surfaced when I added GMP support, though I can't figure out why. Valgrind ruled out most of the common kinds of memory errors, yet the stack said the crash occurred in the `realloc()` function. It may have just been an obscure bug in my copy of GLIBC 2.28, I don't know. In any case, Jemalloc is optionally supported as a memory allocator, and if you get a weird crash it may fix it to build with Jemalloc support. It did for me, though again I'm not really sure why :shrug:
+
+Install jemalloc and its headers, and build with:
+
+```
+gcc -DHAVE_JEMALLOC_H -O3 -march=native -fwhole-program npiet-1.3e-gmp-jem.c -lgmp -ljemalloc
+```
