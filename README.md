@@ -36,5 +36,5 @@ There is also another possible crash that sometimes occurs with long programs of
 Install jemalloc and its headers, and build with:
 
 ```
-gcc -DHAVE_JEMALLOC_H -O3 -march=native -fwhole-program npiet-1.3e-gmp-jem.c -lgmp -ljemalloc
+gcc -DHAVE_JEMALLOC_H -O3 -march=native -fwhole-program npiet-1.3e-gmp.c -lgmp -ljemalloc
 ```
