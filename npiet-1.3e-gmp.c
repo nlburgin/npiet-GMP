@@ -2236,7 +2236,7 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
 
       if (! quiet) {
 	/* show a prompt: */
-	eprintf ("? "); fflush (sterr);
+	eprintf ("? "); fflush (stderr);
       }
       if ((c = getchar ()) < 0) {
 	tprintf ("info: cannot read char from stdin; reason: %s\n",
