@@ -186,14 +186,16 @@ int version_11 = 0;
 void (*div_q)(mpz_t, const mpz_t, const mpz_t) = mpz_tdiv_q;
 void (*div_r)(mpz_t, const mpz_t, const mpz_t) = mpz_tdiv_r;
 
+#define eprintf(...) fprintf (stderr, __VA_ARGS__)
+
 /* helper: */
-#define dprintf		if (debug) printf
-#define d2printf	if (debug > 1) printf
+#define dprintf		if (debug) eprintf
+#define d2printf	if (debug > 1) eprintf
 #define tprintf		if (trace \
 			    && exec_step >= gd_trace_start \
-                            && exec_step <= gd_trace_end) printf
-#define t2printf	if (trace > 1) printf
-#define vprintf		if (verbose) printf
+                            && exec_step <= gd_trace_end) eprintf
+#define t2printf	if (trace > 1) eprintf
+#define vprintf		if (verbose) eprintf
 
 int 
 parse_args (int argc, char **argv)
@@ -226,7 +228,7 @@ parse_args (int argc, char **argv)
       vprintf ("info: setting npiet version 1.1 behavior\n");
     } else if (! strcmp (argv [0], "-tpic")) {
 #ifndef HAVE_GD_H
-      printf ("note: no GD support compiled in. the graphical trace "
+      fprintf (stderr,"note: no GD support compiled in. the graphical trace "
 	      "feature is not avail\n");
 #else
       do_gdtrace = 1;
@@ -235,7 +237,7 @@ parse_args (int argc, char **argv)
     } else if (argc > 0 && ! strcmp (argv [0], "-tpf")) {
       argc--, argv++;		/* shift */
 #ifndef HAVE_GD_H
-      printf ("note: no GD support compiled in. the graphical trace "
+      fprintf (stderr,"note: no GD support compiled in. the graphical trace "
 	      "feature is not avail\n");
 #else
       if ((c_xy = atoi (argv [0])) < 1) {
@@ -248,7 +250,7 @@ parse_args (int argc, char **argv)
 #endif
     } else if (! strcmp (argv [0], "-tps")) {
 #ifndef HAVE_GD_H
-      printf ("note: no GD support compiled in. the graphical trace "
+      fprintf (stderr,"note: no GD support compiled in. the graphical trace "
 	      "feature is not avail\n");
 #else
       do_gdtrace = 1;
@@ -261,7 +263,7 @@ parse_args (int argc, char **argv)
     } else if (argc > 0 && ! strcmp (argv [0], "-ts")) {
       argc--, argv++;		/* shift */
 #ifndef HAVE_GD_H
-      printf ("note: no GD support compiled in. the graphical trace "
+      fprintf (stderr,"note: no GD support compiled in. the graphical trace "
 	      "feature is not avail\n");
 #else
       gd_trace_start = atoi (argv [0]);
@@ -272,7 +274,7 @@ parse_args (int argc, char **argv)
     } else if (argc > 0 && ! strcmp (argv [0], "-te")) {
       argc--, argv++;		/* shift */
 #ifndef HAVE_GD_H
-      printf ("note: no GD support compiled in. the graphical trace "
+      fprintf (stderr,"note: no GD support compiled in. the graphical trace "
 	      "feature is not avail\n");
 #else
       gd_trace_end = atoi (argv [0]);
@@ -446,16 +448,16 @@ tdump_stack ()
   int i;
 
   if (num_stack == 0) {
-    printf ("trace: stack is empty");
+    fprintf (stderr,"trace: stack is empty");
   } else {
-    printf ("trace: stack (%d values):", num_stack);
+    fprintf (stderr,"trace: stack (%d values):", num_stack);
   }
   for (i = 0; i < num_stack; i++) {
     char *out = mpz_get_str(NULL,10,stack[num_stack - i - 1]);
-    printf (" %s", out);
+    fprintf (stderr," %s", out);
     free(out);
   }
-  printf ("\n");
+  fprintf (stderr,"\n");
 }
 
 
@@ -555,7 +557,7 @@ get_cell (int x, int y)
 {
   int c_idx = cell_idx (x, y);
   if (c_idx < 0) {
-    if (debug > 1) printf ("deb: bad index for x=%d, y=%d\n", x, y);
+    if (debug > 1) fprintf (stderr,"deb: bad index for x=%d, y=%d\n", x, y);
     return -1;
   }
   return (int) cells [c_idx];
@@ -619,9 +621,9 @@ dump_cells ()
   for (j = 0; j < height; j++) {
     for (i = 0; i < width; i++) {
       int idx = get_cell (i, j);
-      printf ("%3s", cell2str (idx));
+      fprintf (stderr,"%3s", cell2str (idx));
     }
-    printf ("\n");
+    fprintf (stderr,"\n");
   }
 }
 
@@ -2200,7 +2202,7 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
 
       if (! quiet) {
 	/* show a prompt: */
-	printf ("? "); fflush (stdout);
+	eprintf ("? "); fflush (stderr);
       }
 
       if (0 == mpz_inp_str (stack [num_stack++],stdin, 10)) {
@@ -2234,7 +2236,7 @@ piet_action (int c_col, int a_col, int num_cells, char *msg)
 
       if (! quiet) {
 	/* show a prompt: */
-	printf ("? "); fflush (stdout);
+	eprintf ("? "); fflush (sterr);
       }
       if ((c = getchar ()) < 0) {
 	tprintf ("info: cannot read char from stdin; reason: %s\n",
@@ -2614,7 +2616,7 @@ do_n_str_cmd (char *do_n_str)
 {
 #ifndef HAVE_GD_H
 
-  printf ("sorry, no gd support...\n");
+  fprintf (stderr,"sorry, no gd support...\n");
 
 #else
 
@@ -2627,7 +2629,7 @@ do_n_str_cmd (char *do_n_str)
   gdImagePtr img;
   int cols [n_colors];
 
-  printf ("string=%s\n", do_n_str);
+  fprintf (stderr,"string=%s\n", do_n_str);
 
   if (n == 0) {
     /* avoid errors: */
@@ -2641,7 +2643,7 @@ do_n_str_cmd (char *do_n_str)
 
   avg = s / n;
 
-  printf ("avg: %d rounded to %d\n", avg, (avg / 5) * 5);
+  fprintf (stderr,"avg: %d rounded to %d\n", avg, (avg / 5) * 5);
 
   avg = (avg / 5) * 5;
 
@@ -2653,15 +2655,15 @@ do_n_str_cmd (char *do_n_str)
     d_max = i_max(d_max, i_abs(d));
 
     if (d < 0) {
-      printf ("sub: %d\n", d);
+      fprintf (stderr,"sub: %d\n", d);
     } else if (d > 0) {
-      printf ("add: %d\n", d);
+      fprintf (stderr,"add: %d\n", d);
     } else {
-      printf ("dup only\n");
+      fprintf (stderr,"dup only\n");
     }
   }
 
-  printf ("\n");
+  fprintf (stderr,"\n");
 
   /* wild guess about number of rows to build: */
   n_row = (int) sqrt (n / 2) - 1;
@@ -2670,13 +2672,13 @@ do_n_str_cmd (char *do_n_str)
   }
 
 
-  printf ("n: %d, d_max/4: %d, n_row: %d\n", n, d_max / 4, n_row);
+  fprintf (stderr,"n: %d, d_max/4: %d, n_row: %d\n", n, d_max / 4, n_row);
 
   w = 5 + (n / n_row) * 4 +    /* right off */ 80;
   h = i_max (avg / 5, n_row * (3 + d_max / 4)) + /* lower off */ 40;
 
 
-  printf ("\nsize: %dx%d\n", w, h);
+  fprintf (stderr,"\nsize: %dx%d\n", w, h);
 
   img = gdImageCreate (w, h);
 
@@ -2702,7 +2704,7 @@ do_n_str_cmd (char *do_n_str)
     /* new row ? */
     if (i > 0 && i + 1 != n && (i % (n / n_row + 1)) == 0) {
 
-      printf ("** new row: i=%d\n", i);
+      fprintf (stderr,"** new row: i=%d\n", i);
 
       
       /* corner pixel: */
@@ -2742,7 +2744,7 @@ do_n_str_cmd (char *do_n_str)
 
     o = i_abs (d) - 1;
 #if 1
-    printf ("fill: x=%d, y=%d, col=%d, o=%d\n", x, y, col, o);
+    fprintf (stderr,"fill: x=%d, y=%d, col=%d, o=%d\n", x, y, col, o);
 
     for (j = 0; o > 0; j++) {
       for (k = 0; k < 4 && o > 0; k++) {
@@ -2756,7 +2758,7 @@ do_n_str_cmd (char *do_n_str)
     col = adv_col(col, 0, 1);
     gdImageSetPixel (img, x, y, cols [col]);	/* push */
 
-    printf ("push: x=%d, y=%d, col=%d\n", x, y, col);
+    fprintf (stderr,"push: x=%d, y=%d, col=%d\n", x, y, col);
 
     x += 1;
 
@@ -2767,19 +2769,19 @@ do_n_str_cmd (char *do_n_str)
       col = adv_col(col, 1, 0);
       gdImageSetPixel (img, x, y, cols [col]);	/* add */
     } else {
-      printf ("dup only\n");
+      fprintf (stderr,"dup only\n");
       col = adv_col(col, 0, 2);
       gdImageSetPixel (img, x, y, cols [col]);	/* pop */
     }
 
-    printf ("sub/add/pop: x=%d, y=%d, col=%d\n", x, y, col);
+    fprintf (stderr,"sub/add/pop: x=%d, y=%d, col=%d\n", x, y, col);
 
     x += 1;
 
     col = adv_col(col, 5, 2);
     gdImageSetPixel (img, x, y, cols [col]);	/* outchar */
 
-    printf ("out(c): x=%d, y=%d, col=%d\n", x, y, col);
+    fprintf (stderr,"out(c): x=%d, y=%d, col=%d\n", x, y, col);
 
     x += 1;
   }
@@ -2796,7 +2798,7 @@ do_n_str_cmd (char *do_n_str)
   } else {
     gdImagePng (img, out);
     fclose (out);
-    printf ("file saved: n-str.png\n");
+    fprintf (stderr,"file saved: n-str.png\n");
   }
 
 #endif
