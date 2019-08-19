@@ -72,6 +72,10 @@ char *version = "v1.3e-gmp";
 #include <limits.h>
 #include <gmp.h>
 
+#ifdef HAVE_JEMALLOC_H
+# include <jemalloc/jemalloc.h>
+#endif
+
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
