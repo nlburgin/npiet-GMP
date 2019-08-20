@@ -144,7 +144,7 @@ int quiet = 0;
 int trace = 0;
 
 /* maximum number of execution steps (0 == unlimited): */
-unsigned max_exec_step = 0;
+unsigned long long max_exec_step = 0;
 
 /* print debugging stuff: */
 int debug = 0;
@@ -258,8 +258,8 @@ parse_args (int argc, char **argv)
 #endif
     } else if (argc > 0 && ! strcmp (argv [0], "-e")) {
       argc--, argv++;		/* shift */
-      max_exec_step = atoi (argv [0]);
-      vprintf ("info: number of execution steps set to %u\n", max_exec_step);
+      max_exec_step = atoll (argv [0]);
+      vprintf ("info: number of execution steps set to %llu\n", max_exec_step);
     } else if (argc > 0 && ! strcmp (argv [0], "-ts")) {
       argc--, argv++;		/* shift */
 #ifndef HAVE_GD_H
@@ -398,7 +398,7 @@ int p_xpos, p_ypos;		/* execution position */
 #define dp_dy(dp)	((dp) == 'u' ? -1 : ((dp) == 'd' ? 1 : 0))
 
 /* informal step counter: */
-unsigned exec_step = 0;
+unsigned long long exec_step = 0;
 
 /*
  * stack space for runtime action: 
@@ -2322,7 +2322,7 @@ piet_step ()
   static int p_toggle = 0;
 
   if (max_exec_step > 0 && exec_step >= max_exec_step) {
-    fprintf (stderr, "error: configured execution steps exceeded (%d steps)\n",
+    fprintf (stderr, "error: configured execution steps exceeded (%llu steps)\n",
 	     exec_step);
     return -1;
   }
@@ -2524,7 +2524,7 @@ piet_step ()
       p_toggle++;
 
     } else {
-      tprintf ("\ntrace: step %d  (%d,%d/%c,%c %s -> %d,%d/%c,%c %s):\n",
+      tprintf ("\ntrace: step %llu  (%d,%d/%c,%c %s -> %d,%d/%c,%c %s):\n",
 	       exec_step, p_xpos, p_ypos, pre_dp, pre_cc,
 	       cell2str (get_cell (p_xpos, p_ypos)),
 	       a_x, a_y, p_dir_pointer, p_codel_chooser,
